@@ -1,3 +1,16 @@
+NOTE: In the process of refactoring code so that it works with the new 2017 redesign of Google Voice site
+====================
+
+Working:
+  - 2-Factor login
+  - Sending SMS
+
+Partially working:
+  - Password-only login
+
+Broken:
+  - Everything else
+
 Python Google Voice
 ====================
 
