@@ -1,2 +1,5 @@
 build/
 build/*
+.spyproject*
+.gitignore
+*.pyc

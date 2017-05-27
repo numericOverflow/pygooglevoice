@@ -1,16 +1,21 @@
 import re
+import logging
 from sys import stdout
 from xml.parsers.expat import ParserCreate
-from time import gmtime
+from time import gmtime, sleep
 from datetime import datetime
 from pprint import pprint
+#from base64 import b32decode
+##from __init__ import __version__   #does not work...
 try:
     from urllib2 import build_opener,install_opener, \
-        HTTPCookieProcessor,Request,urlopen
+        HTTPCookieProcessor,Request,urlopen, \
+        URLError, HTTPError
     from urllib import urlencode,quote
 except ImportError:
     from urllib.request import build_opener,install_opener, \
-        HTTPCookieProcessor,Request,urlopen
+        HTTPCookieProcessor,Request,urlopen, \
+        URLError, HTTPError
     from urllib.parse import urlencode,quote
 try:
     from http.cookiejar import LWPCookieJar as CookieJar
@@ -56,7 +61,8 @@ def validate_response(response):
     try:
         assert 'ok' in response and response['ok']
     except AssertionError:
-        raise ValidationError('There was a problem with GV: %s' % response)
+        #raise ValidationError('There was a problem with GV: %s' % response)
+        raise ValidationError('There was a problem with GV: {0}'.format(response))
 
 def load_and_validate(response):
     """
@@ -153,7 +159,8 @@ class Phone(AttrDict):
         return self.phoneNumber
     
     def __repr__(self):
-        return '<Phone %s>' % self.phoneNumber
+        #return '<Phone %s>' % self.phoneNumber
+        return '<Phone {0}>'.format(self.phoneNumber)
         
 class Message(AttrDict):
     """
@@ -218,7 +225,8 @@ class Message(AttrDict):
         return self.id
     
     def __repr__(self):
-        return '<Message #%s (%s)>' % (self.id, self.phoneNumber)
+        #return '<Message #%s (%s)>' % (self.id, self.phoneNumber)
+        return '<Message #{0} ({1})>'.format(self.id, self.phoneNumber)
 
 class Folder(AttrDict):
     """
@@ -246,7 +254,8 @@ class Folder(AttrDict):
         return self['totalSize']
 
     def __repr__(self):
-        return '<Folder %s (%s)>' % (self.name, len(self))
+        #return '<Folder %s (%s)>' % (self.name, len(self))
+        return '<Folder {0} ({1})>'.format(self.name, len(self))
     
 class XMLParser(object):
     """
@@ -312,3 +321,27 @@ class XMLParser(object):
             raise JSONError
     data = property(data)
     
+
+class Voice_URI_Response(object):
+    """
+    Object to hold responses from web URL calls to google because the urllib.read() is one-time-only
+    This object lets us keep the response content so we can access again, and still get at the urlopen results too
+    """
+    def __init__(self, response_object, raw_content=None):
+        self.__response_object = response_object
+        
+        if response_object:
+            self.__response_content = response_object.read()
+        else:
+            self.__response_content = raw_content
+        
+    def get_content(self):
+        return self.__response_content
+    content = property(get_content)
+    
+    def read(self):
+        return self.get_content()    
+    
+    def get_response_object(self):
+        return self.__response_object
+    response_object = property(get_response_object)    

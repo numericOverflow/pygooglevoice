@@ -25,13 +25,13 @@ class Config(ConfigParser):
         except IOError:
             return
 
-    def get(self, option, section='gvoice'):
+    def get(self, option, section='gvoice', **kwargs):
         try:
             return ConfigParser.get(self, section, option).strip() or None
         except NoOptionError:
             return
 
-    def set(self, option, value, section='gvoice'):
+    def set(self, option, value, section='gvoice', **kwargs):
         return ConfigParser.set(self, section, option, value)
 
     def phoneType(self):
@@ -48,7 +48,6 @@ class Config(ConfigParser):
     forwardingNumber = property(lambda self: self.get('forwardingNumber'))
     email = property(lambda self: self.get('email', 'auth'))
     password = property(lambda self: self.get('password', 'auth'))
-    smsKey = property(lambda self: self.get('smsKey', 'auth'))
-    secret = property(lambda self: self.get('secret'))
+    MFAKey = property(lambda self: self.get('MFAKey', 'auth'))
 
 config = Config()
