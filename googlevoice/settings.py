@@ -33,6 +33,7 @@ TYPES = {
 
 #Set the logging level to debug issues.  Valid options are: ['CRITICAL','ERROR','WARNING','INFO','DEBUG']
 LOGGING_LEVEL = 'DEBUG'
+
 #True/False will Enable/Disable saving intermedate page content from google calls to files 
 #(useful for debugging, but not recommended for "normal" use b/c files are never cleaned up)
 SAVEPAGESTOFILE=True

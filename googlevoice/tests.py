@@ -14,19 +14,20 @@ class VoiceTest(TestCase):
         forwarding = util.input('Forwarding number [optional]: ') or None
     
     if outgoing:
-        def test_1call(self):
-            self.voice.call(self.outgoing, self.forwarding)
+#        def test_1call(self):
+#            self.voice.call(self.outgoing, self.forwarding)
 
-#        def test_sms(self):
-#            self.voice.send_sms(self.outgoing, 'i sms u at {ts}'.format(ts=datetime.datetime.today()))
+        def test_sms(self):
+            self.voice.send_sms(self.outgoing, 'i sms u at {ts}'.format(ts=datetime.datetime.today()))
 #
 #        def test_2cancel(self):
 #            self.voice.cancel(self.outgoing, self.forwarding)
  
-    if False:   
-        def test_special(self):
-            self.assert_(self.voice.special)
-            
+    
+    def test_special(self):
+        self.assert_(self.voice.special)
+
+    if False:               
         def test_inbox(self):
             self.assert_(self.voice.inbox)
         
@@ -53,9 +54,9 @@ class VoiceTest(TestCase):
             self.assert_(str(config.phoneType) in '1237')
             self.assertEqual(config.get('wtf'), None)
             
-        def test_zlogout(self):
-            self.voice.logout()
-            self.assert_(self.voice.special is None)            
+    def test_zlogout(self):
+        self.voice.logout()
+        self.assert_(self.voice.special is None)            
         
 #if __name__ == '__main__': main()
 

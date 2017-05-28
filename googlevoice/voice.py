@@ -15,9 +15,9 @@ qpat = re.compile(r'\?')
 
 logging.basicConfig()
 log = logging.getLogger('PyGoogleVoice')
-if getattr(settings, "LOGGING_LEVEL", None) and settings.LOGGING_LEVEL in ['CRITICAL','ERROR','WARNING','INFO','DEBUG']:
+if getattr(settings, "LOGGING_LEVEL", None) and str(settings.LOGGING_LEVEL).upper() in ['CRITICAL','ERROR','WARNING','INFO','DEBUG']:
     print('set logging to logging.' + str(settings.LOGGING_LEVEL))
-    log.setLevel(str(settings.LOGGING_LEVEL))
+    log.setLevel(str(settings.LOGGING_LEVEL).upper())
     log.disabled = False
 else:
     print('Logging not enabled')
@@ -57,37 +57,6 @@ class Voice(object):
 #            log.disabled = False
 #        except:
 #            pass  #leave DEBUG logging disabled if we can't find setting to enable
-
-    ######################
-    # Some handy methods
-    ######################
-#    def special_OLDVERSION(self):
-#        """
-#        Returns special identifier for your session (if logged in)
-#        """
-#        
-#        #TEMP DUMP inbox to file ##########################
-#        log.debug('Inside special() - requesting settings.inbox page...')
-#        self.__debugWriteHTMLPageToTempFile(urlopen(settings.INBOX).read())
-#        #TEMP DUMP inbox to file ##########################
-#        
-#        if hasattr(self, '_special') and getattr(self, '_special'):
-#            return self._special
-#        try:
-#            try:
-#                regex = bytes("('_rnr_se':) '(.+)'", 'utf8')
-#            except TypeError:
-#                regex = bytes("('_rnr_se':) '(.+)'")
-#        except NameError:
-#            regex = r"('_rnr_se':) '(.+)'"
-#        try:
-#            sp = re.search(regex, urlopen(settings.INBOX).read()).group(2)
-#        except AttributeError:
-#            sp = None
-#        self._special = sp
-#        return sp
-#    special = property(special)
-#
 
     def special(self):
         """
@@ -196,7 +165,7 @@ class Voice(object):
                 log.debug('login().2FactorChallenge.formParms={0}'.format(str(formParms)))
                 content = self.__MFAAuth(formParms, MFAKey)
                 #self.__debugWriteHTMLPageToTempFile(content)
-        except (AssertionError, AttributeError), e:
+        except (AssertionError, AttributeError) as e:
             log.debug('login()=> result.geturl() did not exist')
             print(str(e))
 
@@ -217,7 +186,7 @@ class Voice(object):
 
         try:
             assert self.special
-        except (AssertionError, AttributeError), e:
+        except (AssertionError, AttributeError) as e:
             print(str(e))
             raise LoginError
             
@@ -258,6 +227,7 @@ class Voice(object):
 
     __call__ = call
 
+    # I don't think there is an equivalent new API call to cancel a call any more...
     def cancel(self, outgoingNumber=None, forwardingNumber=None):
         """
         Cancels a call matching outgoing and forwarding numbers (if given).
@@ -296,6 +266,11 @@ class Voice(object):
         Returns ``Folder`` instance containting matching messages
         """
         #return self.__get_xml_page('search', data='?q=%s' % quote(query))()
+        #return self.__get_xml_page('search', data='?q={0}'.format(quote(query)))()
+        #https://www.google.com/voice/m/x?m=search&q=sms&o=0&lm=10&v=13    
+        resp = self.__do_api_call({'m':'search', 'q': query, 'o': 0, 'lm':10})
+        log.debug("__do_page() - data looks like dict or tuple, so being URL encoded")
+        # @TODO: convert the new JSON response to the "Folder" object to return
         return self.__get_xml_page('search', data='?q={0}'.format(quote(query)))()
 
     def archive(self, msg, archive=1):
@@ -305,7 +280,13 @@ class Voice(object):
         if isinstance(msg, Message):
             msg = msg.id
         assert is_sha1(msg), 'Message id not a SHA1 hash'
-        self.__messages_post('archive', msg, archive=archive)
+        
+        if archive:
+            action = 'add'
+        else:
+            action = 'rm'
+        #https://www.google.com/voice/m/x?m=mod&id=5015b252c2353fe95864333a1ae88ebec1f02532&add=starred&v=13
+        self.__do_api_call({'m':'mod', 'id': msg, action: 'inbox'})
 
     def delete(self, msg, trash=1):
         """
@@ -314,7 +295,13 @@ class Voice(object):
         if isinstance(msg, Message):
             msg = msg.id
         assert is_sha1(msg), 'Message id not a SHA1 hash'
-        self.__messages_post('delete', msg, trash=trash)
+        
+        if archive:
+            action = 'add'
+        else:
+            action = 'rm'
+        #https://www.google.com/voice/m/x?m=mod&id=5015b252c2353fe95864333a1ae88ebec1f02532&add=trash&v=13
+        self.__do_api_call({'m':'mod', 'id': msg, action: 'trash'})
 
     def download(self, msg, adir=None):
         """
@@ -412,9 +399,8 @@ class Voice(object):
         terms.update({"v":"13"})
         
         assert len(terms.get('m', "")) > 0, \
-            'The API method must be specified when making requests to googleVoice API\r\n' + \
+            'Local error: API call not sent. The API method must be specified when making requests to googleVoice API\r\n' + \
             '--> (supplied terms dictionary must have the key "m" with value equal to the API method to call)'
-            
         
         return self.__do_page('API_BASE', data=self.__build_API_payload(), terms = terms, payloadType='text/plain;charset=UTF-8').get_content()
             
@@ -447,19 +433,20 @@ class Voice(object):
         #return XMLParser(self, page, lambda terms={}: self.__do_special_page('XML_%s' % page.upper(), data, headers, terms).read())
         return XMLParser(self, page, lambda terms={}: self.__do_special_page('XML_{0}'.format(page.upper()), data, headers, terms).read())
 
-    def __messages_post(self, page, *msgs, **kwargs):
-        """
-        Performs message operations, eg deleting,staring,moving
-        """
-        data = kwargs.items()
-        for msg in msgs:
-            if isinstance(msg, Message):
-                msg = msg.id
-            assert is_sha1(msg), 'Message id not a SHA1 hash'
-            data += (('messages', msg),)
-        return self.__do_special_page(page, dict(data))
-
-    _Message__messages_post = __messages_post
+# Obsolete function
+#    def __messages_post(self, page, *msgs, **kwargs):
+#        """
+#        Performs message operations, eg deleting,staring,moving
+#        """
+#        data = kwargs.items()
+#        for msg in msgs:
+#            if isinstance(msg, Message):
+#                msg = msg.id
+#            assert is_sha1(msg), 'Message id not a SHA1 hash'
+#            data += (('messages', msg),)
+#        return self.__do_special_page(page, dict(data))
+#
+#    _Message__messages_post = __messages_post
 
     def __scrapeParmsFromHTML(self, HTMLString ='', parmNames=[]):
         """
@@ -509,7 +496,7 @@ class Voice(object):
         seconds_between_tries = 10
         
         if MFAKey is None:
-            log.debug('No MFAKey found, prompting user for MFA_Code ...')
+            log.debug('No MFAKey found in config file, prompting user for MFA_Code ...')
             from getpass import getpass
 
             MFA_Code = getpass("Enter 2-Factor Authentication (MFA) Code: ")
@@ -520,7 +507,7 @@ class Voice(object):
                 print('Incorrect number of digits in MFA Code entered.')
                 content = ''
                 
-            while (getattr(settings, "MFAAUTHWRONG") in content or len(MFA_Code)<>6 ) and try_count <= num_tries:
+            while (getattr(settings, "MFAAUTHWRONG") in content or len(MFA_Code)!=6 ) and try_count <= num_tries:
                 try_count += 1
                 if try_count > num_tries:
                     print('Too many MFA failures, exiting...')
@@ -570,7 +557,7 @@ class Voice(object):
             log.debug('Generating TOTP 2-Factor (MFA) code using "pyotp" package')
             TOTP = TOTP(MFAKey).now()
             
-        except ImportError, e:
+        except ImportError as e:
             log.warning('**ERROR** "pyotp" python package, not found.  Please install so we can gederate TOTP MFA codes.  It can be installed with the command "pip install pyotp"')
             log.warning('Attempting to generate TOTP another way')
             
@@ -586,7 +573,7 @@ class Voice(object):
                 p = Popen(['oathtool', '--totp', MFAKey], stdout=subprocess_PIPE, stderr=subprocess_PIPE)
                 stdout, stderr = p.communicate()
                 TOTP = re.search(r'([0-9]{6})', str(stdout)).groups()[0]
-            except ImportError, e:
+            except ImportError as e:
                 log.critical('**ERROR** Generating TOTP 2-Factor (MFA) code using "oathtool" binary!')
                 log.critical('Generating TOTP 2-Factor (MFA) code using "oathtool" binary')
                 log.critical('**ERROR** - Unable to generate a TOTP.  You have 2 options:')
@@ -623,6 +610,11 @@ class Voice(object):
                         log.debug('Error writing content to file')
 
                     tmp.close()
+                    log.debug('*'*50)
                     log.debug('Saved HTML file to: "{0}"'.format(tmp.name))
+                    log.debug('-'*50)
+                    log.debug('NOTICE: To ensure data privacy, be sure to manually delete file listed above once you are finished debugging.')
+                    log.debug('******* This file  may contain sensetive information (passwords, txt msgs, private data, etc.)')
+                    log.debug('*'*50)
             except:
-                log.debug('Enable "SAVEPAGESTOFILE=True" in settings if you want to save intermediate pages to temp files')
+                log.debug('Enable "SAVEPAGESTOFILE=True" in settings.py if you want to save intermediate pages to temp files')
