@@ -34,6 +34,7 @@ class Voice(object):
     #as a hack/workaround, we will also store it here... :(
     __version__ = '0.60'
     
+    
     def __init__(self):
         #import class this one is dependent upon
         from voice import Voice_URI_Response
@@ -111,6 +112,17 @@ class Voice(object):
             #@TODO: Make this abstracted so it can be stored in settings or file instead of hardcoded here...
             content = self.__do_page('LOGIN_GV_INIT', data='{"gvx":"' + str(self._gvx) + '"}', terms = {"m":"init","v":"13"}, payloadType='text/plain;charset=UTF-8').get_content()
             sp = re.search(regex, content).group(1)
+            try:
+                jsonResponse = loads(content[content.find("{"):].strip())
+                #log.debug(jsonResponse)
+                log.debug('special extracted from json is "{0}"'.format(jsonResponse['rnr_xsrf_token']))
+            except ValueError:
+                sp = None
+                log.critical('special()=> Unable to parse the JSON response in order to find special token')
+            except KeyError:
+                sp = None
+                log.critical('special()=> special token not found in decoded JSON')      
+                log.critical('special()=> enable debug to see response we got and track down error')      
         except AttributeError:
             sp = None
             log.debug('special()=> oops! AttributeError encountered')            
@@ -149,6 +161,8 @@ class Voice(object):
 #        #result = self.__do_page('login', {'Email': email, 'Passwd': passwd, 'GALX': GALX})
 #        formParms['gxf'] = re.search(r"type=\"hidden\"[^>]+name=\"gxf\"[^>]+value=\"(.+)\"", content).group(1)
         log.debug('Got login page, scraping some values we need to pass to subsequent pages...')
+
+        parmsToFind = []
         
         #Find the form variables
         formParms = {'Email': email, 'Passwd': passwd, 'service':'grandcentral'}        
@@ -231,13 +245,16 @@ class Voice(object):
         if phoneType is None:
             phoneType = config.phoneType
 
-        self.__validate_special_page('call', {
-            'outgoingNumber': outgoingNumber,
-            'forwardingNumber': forwardingNumber,
-            'subscriberNumber': subscriberNumber or 'undefined',
-            'phoneType': phoneType,
-            'remember': '1'
-        })
+        #self.__validate_special_page('call', {
+        #    'outgoingNumber': outgoingNumber,
+        #    'forwardingNumber': forwardingNumber,
+        #    'subscriberNumber': subscriberNumber or 'undefined',
+        #    'phoneType': phoneType,
+        #    'remember': '1'
+        #})
+        
+        log.debug("call() - placing call to {to} from {fr}".format(to=outgoingNumber, fr=forwardingNumber))
+        self.__do_api_call({'m':'call', 'n':outgoingNumber, 'f':forwardingNumber })
 
     __call__ = call
 
@@ -394,6 +411,11 @@ class Voice(object):
         #make sure we send the API verison with this call
         terms.update({"v":"13"})
         
+        assert len(terms.get('m', "")) > 0, \
+            'The API method must be specified when making requests to googleVoice API\r\n' + \
+            '--> (supplied terms dictionary must have the key "m" with value equal to the API method to call)'
+            
+        
         return self.__do_page('API_BASE', data=self.__build_API_payload(), terms = terms, payloadType='text/plain;charset=UTF-8').get_content()
             
     def __validate_special_page(self, page, data={}, **kwargs):
@@ -502,7 +524,7 @@ class Voice(object):
                 try_count += 1
                 if try_count > num_tries:
                     print('Too many MFA failures, exiting...')
-                    exit()
+                    exit(99)
                     
                 print('Invalid MFA code, please wait at least {0} seconds before re-entering (attempt {1} of {2})'.format(seconds_between_tries, try_count, num_tries))
                 #import time
@@ -604,29 +626,3 @@ class Voice(object):
                     log.debug('Saved HTML file to: "{0}"'.format(tmp.name))
             except:
                 log.debug('Enable "SAVEPAGESTOFILE=True" in settings if you want to save intermediate pages to temp files')
-                
-
-class Voice_URI_Response(object):
-    """
-    Object to hold responses from web URL calls to google because the urllib.read() is one-time-only
-    This object lets us keep the response content so we can access again, and still get at the urlopen results too
-    """
-    def __init__(self, response_object, raw_content=None):
-        self.__response_object = response_object
-        
-        if response_object:
-            self.__response_content = response_object.read()
-        else:
-            self.__response_content = raw_content
-        
-    def get_content(self):
-        return self.__response_content
-    content = property(get_content)
-    
-    def read(self):
-        return self.get_content()    
-    
-    def get_response_object(self):
-        return self.__response_object
-    response_object = property(get_response_object)    
-    

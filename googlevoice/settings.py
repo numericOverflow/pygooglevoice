@@ -1,5 +1,4 @@
-DEFAULT_CONFIG = """
-[auth]
+DEFAULT_CONFIG = """[auth]
 # Google Account email address (one associated w/ your Voice account)
 email=
 
