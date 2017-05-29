@@ -1,4 +1,7 @@
-from ConfigParser import ConfigParser, NoOptionError
+try:
+    from ConfigParser import ConfigParser as configparser, NoOptionError
+except ImportError:
+    from configparser import ConfigParser, NoOptionError 
 import os
 import settings
 
@@ -25,9 +28,10 @@ class Config(ConfigParser):
         except IOError:
             return
 
-    def get(self, option, section='gvoice', **kwargs):
+    def _get(self, option, section='gvoice', **kwargs):
         try:
-            return ConfigParser.get(self, section, option).strip() or None
+            #return ConfigParser.get(self, section, option).strip() or None
+            return self.get(section, option).strip() or None
         except NoOptionError:
             return
 
@@ -45,9 +49,9 @@ class Config(ConfigParser):
             f.write(f)
 
     phoneType = property(phoneType)
-    forwardingNumber = property(lambda self: self.get('forwardingNumber'))
-    email = property(lambda self: self.get('email', 'auth'))
-    password = property(lambda self: self.get('password', 'auth'))
-    MFAKey = property(lambda self: self.get('MFAKey', 'auth'))
+    forwardingNumber = property(lambda self: self._get('forwardingNumber'))
+    email = property(lambda self: self._get('email', 'auth'))
+    password = property(lambda self: self._get('password', 'auth'))
+    MFAKey = property(lambda self: self._get('MFAKey', 'auth'))
 
 config = Config()

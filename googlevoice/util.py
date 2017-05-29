@@ -6,7 +6,7 @@ from time import gmtime, sleep
 from datetime import datetime
 from pprint import pprint
 #from base64 import b32decode
-##from __init__ import __version__   #does not work...
+
 try:
     from urllib2 import build_opener,install_opener, \
         HTTPCookieProcessor,Request,urlopen, \
