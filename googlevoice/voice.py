@@ -79,7 +79,8 @@ class Voice(object):
         try:
             log.debug('special()=> Attempting to fetch special from google...')
             #@TODO: Make this abstracted so it can be stored in settings or file instead of hardcoded here...
-            content = self.__do_page('LOGIN_GV_INIT', data='{"gvx":"' + str(self._gvx) + '"}', terms = {"m":"init","v":"13"}, payloadType='text/plain;charset=UTF-8').get_content()
+            #content = self.__do_page('LOGIN_GV_INIT', data='{"gvx":"' + str(self._gvx) + '"}', terms = {"m":"init","v":"13"}, payloadType='text/plain;charset=UTF-8').get_content()
+            content = self.__do_page('LOGIN_GV_INIT', data=self.__build_API_payload(), terms = {"m":"init","v":"13"}, payloadType='text/plain;charset=UTF-8').get_content()
             sp = re.search(regex, content).group(1)
             try:
                 jsonResponse = loads(content[content.find("{"):].strip())
@@ -351,7 +352,8 @@ class Voice(object):
         #page = page.upper()
         if not payloadType and (isinstance(data, dict) or isinstance(data, tuple)):
             log.debug("__do_page() - data looks like dict or tuple, so being URL encoded")
-            data = urlencode(data)
+            data = urlencode(data).encode('utf-8')
+            #data = data.encode('utf-8')
         headers.update({'User-Agent': self._user_agent_string})
         if log:
             log.debug('__do_page()=>[page]={0} [data]={1} [terms]={2} [headers]={3}'.format(url, data or '',  terms or '', headers))
@@ -381,6 +383,7 @@ class Voice(object):
         #return content
         try:
             log.debug("__do_page() final built pageuri={0}".format(pageuri))
+            log.debug("__do_page() type(pageuri)={0} type(data)={1} type(headers)={2}".format(type(pageuri),type(data),type(headers)))
             response = Voice_URI_Response(urlopen(Request(pageuri, data, headers)))         
         except HTTPError as e:
             response = Voice_URI_Response(None, raw_content='HTML ERROR: {0}\r\n{1}'.format(str(e.code),str(e.read())))
@@ -389,7 +392,7 @@ class Voice(object):
         return response            
             
     def __build_API_payload(self):
-        return '{"gvx":"' + self._gvx + '"}'
+        return {"gvx": self._gvx}
         
     def __do_api_call(self, terms):      
         """
@@ -458,7 +461,7 @@ class Voice(object):
         formParms = {}
         
         for p in parmNames:
-            match = re.search(r'<input[^>]+name="' + str(p) + r'"[^>]+value\s?=\s?"([^"]+)"', HTMLString)
+            match = re.search(r'<input[^>]+name="' + str(p) + r'"[^>]+value\s?=\s?"([^"]+)"', str(HTMLString))
             if match is not None:
                 formParms[p] = match.group(1)
                 log.debug('FOUND form hidden value "{0}"'.format(p))
@@ -473,7 +476,7 @@ class Voice(object):
         """ 
         log.debug('Scraping form poast page from HTML content')
         
-        match = re.search(r'<form[^>]+action\s?=\s?"([^"]+)"[^>]+id="gaia_loginform"', HTMLString)
+        match = re.search(r'<form[^>]+action\s?=\s?"([^"]+)"[^>]+id="gaia_loginform"', str(HTMLString))
         if match is not None:
             p = match.group(1)
             log.debug('FOUND form POST action value "{0}"'.format(p))

@@ -331,7 +331,8 @@ class Voice_URI_Response(object):
         self.__response_object = response_object
         
         if response_object:
-            self.__response_content = response_object.read()
+            self.__response_content = response_object.read().decode("utf-8")
+            print("Voice_URI_Response.init() -> type(response_content)={0}".format(type(self.__response_content),self.__response_content))
         else:
             self.__response_content = raw_content
         
